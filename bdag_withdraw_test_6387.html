@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BDAG Withdraw Test – 6387…083f</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; }
+    button { padding: 12px 16px; margin: 6px 0; font-size: 16px; }
+    code, pre { word-break: break-all; white-space: pre-wrap; }
+    .box { border: 1px solid #ccc; border-radius: 10px; padding: 14px; margin: 14px 0; }
+    .warn { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>BDAG Withdraw Test</h1>
+
+  <div class="box">
+    <p><strong>Chain ID:</strong> 1404 (0x57c)</p>
+    <p><strong>Wallet:</strong><br><code id="wallet">0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+    <p><strong>Staking-Contract:</strong><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+    <p><strong>Test-Pool:</strong><br><code>0x6387c32ccdd60bfba00ec70a67715dcd52e8083f</code></p>
+  </div>
+
+  <button id="connect">1. MetaMask verbinden</button>
+  <button id="estimate" disabled>2. Gas schätzen</button>
+  <button id="withdraw" disabled>3. Withdraw in MetaMask öffnen</button>
+
+  <div class="box">
+    <strong>Status</strong>
+    <pre id="status">Noch nicht verbunden.</pre>
+  </div>
+
+  <p class="warn">Diese Seite fragt niemals Seed Phrase oder Private Key ab. Die echte Transaktion wird nur dann gesendet, wenn du sie anschließend in MetaMask bestätigst.</p>
+
+<script>
+const EXPECTED_CHAIN = '0x57c';
+const EXPECTED_WALLET = '0xb93852b149d92d58879c5e4290de972a7fba036c';
+const CONTRACT = '0x08bd519f611556dc148e7bffe8d6f078f23a8ef7';
+const DATA = '0xf3363c52000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c0000000000000000000000006387c32ccdd60bfba00ec70a67715dcd52e8083f';
+
+const statusEl = document.getElementById('status');
+const estimateBtn = document.getElementById('estimate');
+const withdrawBtn = document.getElementById('withdraw');
+
+function setStatus(s) { statusEl.textContent = s; }
+
+async function ensureReady() {
+  if (!window.ethereum) throw new Error('MetaMask wurde nicht gefunden.');
+  const accounts = await ethereum.request({ method: 'eth_accounts' });
+  if (!accounts.length) throw new Error('Keine Wallet verbunden.');
+  const account = accounts[0].toLowerCase();
+  if (account !== EXPECTED_WALLET) {
+    throw new Error('Falsche Wallet verbunden: ' + account);
+  }
+  const chainId = await ethereum.request({ method: 'eth_chainId' });
+  if (chainId.toLowerCase() !== EXPECTED_CHAIN) {
+    throw new Error('Falsches Netzwerk. Erwartet wird Chain ID 1404 (0x57c), aktuell: ' + chainId);
+  }
+  return accounts[0];
+}
+
+document.getElementById('connect').onclick = async () => {
+  try {
+    if (!window.ethereum) throw new Error('MetaMask wurde nicht gefunden.');
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+    const account = accounts[0];
+    const chainId = await ethereum.request({ method: 'eth_chainId' });
+
+    setStatus('Verbunden:\n' + account + '\nChain ID: ' + chainId);
+
+    await ensureReady();
+    estimateBtn.disabled = false;
+    withdrawBtn.disabled = false;
+    setStatus('Alles korrekt.\nWallet: ' + account + '\nChain ID: ' + chainId + '\nBereit für Gas-Schätzung.');
+  } catch (e) {
+    estimateBtn.disabled = true;
+    withdrawBtn.disabled = true;
+    setStatus('FEHLER:\n' + e.message);
+  }
+};
+
+estimateBtn.onclick = async () => {
+  try {
+    const from = await ensureReady();
+    const gas = await ethereum.request({
+      method: 'eth_estimateGas',
+      params: [{
+        from,
+        to: CONTRACT,
+        value: '0x0',
+        data: DATA
+      }]
+    });
+    setStatus('Gas-Schätzung erfolgreich:\n' + parseInt(gas, 16).toLocaleString('de-DE') + ' Gas\n\nNoch wurde nichts gesendet.');
+  } catch (e) {
+    setStatus('Gas-Schätzung FEHLER:\n' + e.message);
+  }
+};
+
+withdrawBtn.onclick = async () => {
+  try {
+    const from = await ensureReady();
+
+    const ok = confirm(
+      'MetaMask wird jetzt eine echte Contract-Transaktion anzeigen.\\n\\n' +
+      'Pool: 0x6387...083f\\n' +
+      'Value: 0 BDAG\\n' +
+      'Contract: 0x08bd...8ef7\\n\\n' +
+      'Nur in MetaMask bestätigen, wenn diese Daten stimmen.'
+    );
+    if (!ok) return;
+
+    const txHash = await ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [{
+        from,
+        to: CONTRACT,
+        value: '0x0',
+        data: DATA,
+        gas: '0x186a0'
+      }]
+    });
+
+    setStatus('Transaktion an MetaMask übergeben / gesendet.\nTX Hash:\n' + txHash);
+  } catch (e) {
+    setStatus('Withdraw FEHLER / abgebrochen:\n' + e.message);
+  }
+};
+</script>
+</body>
+</html>
