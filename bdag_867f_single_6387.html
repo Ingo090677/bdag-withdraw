@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BDAG 867f Test – 6387</title>
+<body style="font-family:system-ui;max-width:760px;margin:30px auto;padding:0 16px;line-height:1.45">
+<h1>BDAG 0x867f1a3e – kontrollierter Test</h1>
+
+<p><b>Chain ID:</b> 1404 (0x57c)</p>
+<p><b>Wallet:</b><br><code>0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+<p><b>Contract:</b><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+<p><b>Pool:</b><br><code>0x6387c32ccdd60bfba00ec70a67715dcd52e8083f</code></p>
+<p><b>Amount:</b> uint256.max</p>
+<p><b>Value:</b> 0 BDAG</p>
+
+<button id="connect">1. MetaMask verbinden</button>
+<button id="gas" disabled>2. Gas schätzen</button>
+<button id="call" disabled>3. eth_call simulieren</button>
+<br><br>
+<label><input id="check" type="checkbox" disabled> Daten geprüft</label>
+<br><br>
+<button id="send" disabled>4. Echte 0x867f1a3e-Transaktion in MetaMask öffnen</button>
+
+<pre id="out" style="white-space:pre-wrap;word-break:break-all;border:1px solid #ccc;padding:12px"></pre>
+
+<script>
+const WALLET='0xb93852b149d92d58879c5e4290de972a7fba036c', CONTRACT='0x08bd519f611556dc148e7bffe8d6f078f23a8ef7', POOL='0x6387c32ccdd60bfba00ec70a67715dcd52e8083f', CHAIN='0x57c', DATA='0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036cffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000006387c32ccdd60bfba00ec70a67715dcd52e8083f';
+const out=document.getElementById('out'), gasBtn=document.getElementById('gas'), callBtn=document.getElementById('call'), check=document.getElementById('check'), sendBtn=document.getElementById('send');
+let gasOK=false, callOK=false;
+
+function show(x){out.textContent=typeof x==='string'?x:JSON.stringify(x,null,2)}
+function refresh(){check.disabled=!(gasOK&&callOK);sendBtn.disabled=!(gasOK&&callOK&&check.checked)}
+
+async function ready(){
+  if(!window.ethereum) throw new Error('MetaMask nicht gefunden');
+  const a=await ethereum.request({method:'eth_accounts'});
+  if(!a.length) throw new Error('Keine Wallet verbunden');
+  if(a[0].toLowerCase()!==WALLET) throw new Error('Falsche Wallet');
+  const c=await ethereum.request({method:'eth_chainId'});
+  if(c.toLowerCase()!==CHAIN) throw new Error('Falsche Chain: '+c);
+  return a[0];
+}
+
+connect.onclick=async()=>{
+  try{
+    await ethereum.request({method:'eth_requestAccounts'});
+    const from=await ready();
+    gasBtn.disabled=false; callBtn.disabled=false;
+    show({ok:true,account:from,chainId:await ethereum.request({method:'eth_chainId'})});
+  }catch(e){show({ok:false,message:e.message,code:e.code,data:e.data})}
+};
+
+gasBtn.onclick=async()=>{
+  gasOK=false; refresh();
+  try{
+    const from=await ready();
+    const g=await ethereum.request({method:'eth_estimateGas',params:[{from,to:CONTRACT,value:'0x0',data:DATA}]});
+    gasOK=true; refresh();
+    show({stage:'estimateGas',ok:true,gasHex:g,gasDecimal:parseInt(g,16)});
+  }catch(e){show({stage:'estimateGas',ok:false,message:e.message,code:e.code,data:e.data})}
+};
+
+callBtn.onclick=async()=>{
+  callOK=false; refresh();
+  try{
+    const from=await ready();
+    const r=await ethereum.request({method:'eth_call',params:[{from,to:CONTRACT,value:'0x0',data:DATA},'latest']});
+    callOK=true; refresh();
+    show({stage:'eth_call',ok:true,result:r});
+  }catch(e){show({stage:'eth_call',ok:false,message:e.message,code:e.code,data:e.data})}
+};
+
+check.onchange=refresh;
+
+sendBtn.onclick=async()=>{
+  try{
+    const from=await ready();
+    const g=await ethereum.request({method:'eth_estimateGas',params:[{from,to:CONTRACT,value:'0x0',data:DATA}]});
+    const r=await ethereum.request({method:'eth_call',params:[{from,to:CONTRACT,value:'0x0',data:DATA},'latest']});
+    const gasInt=parseInt(g,16), gasLimit=Math.ceil(gasInt*1.20);
+
+    if(!confirm(
+      'ECHTE Transaktion vorbereiten?\n\n'+
+      'Selector: 0x867f1a3e\n'+
+      'TO: '+CONTRACT+'\n'+
+      'POOL: '+POOL+'\n'+
+      'AMOUNT: uint256.max\n'+
+      'VALUE: 0 BDAG\n'+
+      'Simulation: '+r+'\n'+
+      'Gas: '+gasInt+'\n'+
+      'Gas-Limit: '+gasLimit+'\n\n'+
+      'Nur fortfahren, wenn MetaMask wirklich rpc.dagtech.network verwendet.'
+    )) return;
+
+    const tx=await ethereum.request({method:'eth_sendTransaction',params:[{from,to:CONTRACT,value:'0x0',data:DATA,gas:'0x'+gasLimit.toString(16)}]});
+    show({submitted:true,txHash:tx});
+  }catch(e){show({stage:'sendTransaction',ok:false,message:e.message,code:e.code,data:e.data})}
+};
+</script>
+</body>
+</html>
