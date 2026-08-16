@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BDAG Principal Unstake – 4be5</title>
+<body style="font-family:system-ui;max-width:760px;margin:30px auto;padding:0 16px;line-height:1.45">
+<h1>BDAG Principal Unstake – Einzelpool</h1>
+<div style="border:1px solid #ccc;border-radius:12px;padding:14px;margin-bottom:16px">
+<p><b>Chain ID:</b> 1404 (0x57c)</p>
+<p><b>Wallet:</b><br><code>0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+<p><b>Contract:</b><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+<p><b>Pool:</b><br><code>0x4be5b1a9100cf96dea7cca4109051ba015d56580</code></p>
+<p><b>Betrag:</b> 2501442.682 BDAG</p><p><b>Value:</b> 0 BDAG</p>
+<p><b>Selector:</b> <code>0x867f1a3e</code></p></div>
+<button id="connect">1. MetaMask verbinden + Balance prüfen</button>
+<button id="gas" disabled>2. Gas schätzen</button>
+<button id="call" disabled>3. eth_call simulieren</button><br><br>
+<label><input id="check" type="checkbox" disabled> Wallet, Chain, Contract, Pool und Betrag geprüft</label><br><br>
+<button id="send" disabled>4. Echte Unstake-Transaktion in MetaMask öffnen</button>
+<pre id="out" style="white-space:pre-wrap;word-break:break-all;border:1px solid #ccc;padding:12px;border-radius:8px">Noch nicht verbunden.</pre>
+<p style="font-weight:700">Die Seite fragt niemals nach Seed Phrase oder Private Key. Nur Schritt 4 kann eine echte Transaktion an MetaMask übergeben.</p>
+<script>
+const WALLET='0xb93852b149d92d58879c5e4290de972a7fba036c',CONTRACT='0x08bd519f611556dc148e7bffe8d6f078f23a8ef7',POOL='0x4be5b1a9100cf96dea7cca4109051ba015d56580',CHAIN='0x57c',AMOUNT_BDAG='2501442.682';
+const DATA='0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c0000000000000000000000000000000000000000000211b37ac113a9ec990000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000004be5b1a9100cf96dea7cca4109051ba015d56580';
+const out=document.getElementById('out'),gasBtn=document.getElementById('gas'),callBtn=document.getElementById('call'),check=document.getElementById('check'),sendBtn=document.getElementById('send');
+let gasOK=false,callOK=false;
+function show(x){out.textContent=typeof x==='string'?x:JSON.stringify(x,null,2)}
+function refresh(){check.disabled=!(gasOK&&callOK);sendBtn.disabled=!(gasOK&&callOK&&check.checked)}
+function fmt(h){const n=BigInt(h),b=1000000000000000000n,w=n/b;let f=(n%b).toString().padStart(18,'0').replace(/0+$/,'');return f?w+'.'+f:w.toString()}
+async function ready(){if(!window.ethereum)throw Error('MetaMask nicht gefunden');const a=await ethereum.request({method:'eth_accounts'});if(!a.length)throw Error('Keine Wallet verbunden');if(a[0].toLowerCase()!==WALLET)throw Error('Falsche Wallet: '+a[0]);const c=await ethereum.request({method:'eth_chainId'});if(c.toLowerCase()!==CHAIN)throw Error('Falsche Chain: '+c);return a[0]}
+async function bal(a){const h=await ethereum.request({method:'eth_getBalance',params:[a,'latest']});return{hex:h,bdag:fmt(h)}}
+connect.onclick=async()=>{try{await ethereum.request({method:'eth_requestAccounts'});const from=await ready(),b=await bal(from);gasBtn.disabled=false;callBtn.disabled=false;show({stage:'connect',ok:true,account:from,chainId:await ethereum.request({method:'eth_chainId'}),nativeBalanceBDAG:b.bdag,hasGas:BigInt(b.hex)>0n})}catch(e){show({stage:'connect',ok:false,message:e.message,code:e.code,data:e.data})}};
+gasBtn.onclick=async()=>{gasOK=false;refresh();try{const from=await ready(),b=await bal(from);if(BigInt(b.hex)===0n)throw Error('Kein natives BDAG für Gas vorhanden.');const g=await ethereum.request({method:'eth_estimateGas',params:[{from,to:CONTRACT,value:'0x0',data:DATA}]});gasOK=true;refresh();show({stage:'estimateGas',ok:true,nativeBalanceBDAG:b.bdag,gasHex:g,gasDecimal:parseInt(g,16)})}catch(e){show({stage:'estimateGas',ok:false,message:e.message,code:e.code,data:e.data})}};
+callBtn.onclick=async()=>{callOK=false;refresh();try{const from=await ready();const r=await ethereum.request({method:'eth_call',params:[{from,to:CONTRACT,value:'0x0',data:DATA},'latest']});callOK=true;refresh();show({stage:'eth_call',ok:true,result:r})}catch(e){show({stage:'eth_call',ok:false,message:e.message,code:e.code,data:e.data})}};
+check.onchange=refresh;
+sendBtn.onclick=async()=>{try{const from=await ready(),b=await bal(from);if(BigInt(b.hex)===0n)throw Error('ABBRUCH: Kein natives BDAG für Gas vorhanden.');const g=await ethereum.request({method:'eth_estimateGas',params:[{from,to:CONTRACT,value:'0x0',data:DATA}]});const r=await ethereum.request({method:'eth_call',params:[{from,to:CONTRACT,value:'0x0',data:DATA},'latest']});const gi=parseInt(g,16),gl=Math.ceil(gi*1.20);if(!confirm('ECHTE Unstake-Transaktion vorbereiten?\n\nTO: '+CONTRACT+'\nPOOL: '+POOL+'\nBETRAG: '+AMOUNT_BDAG+' BDAG\nVALUE: 0 BDAG\nGas-Balance: '+b.bdag+' BDAG\nSimulation: '+r+'\nGas-Schätzung: '+gi+'\nGas-Limit +20%: '+gl))return;const txHash=await ethereum.request({method:'eth_sendTransaction',params:[{from,to:CONTRACT,value:'0x0',data:DATA,gas:'0x'+gl.toString(16)}]});show({stage:'sendTransaction',submitted:true,txHash})}catch(e){show({stage:'sendTransaction',ok:false,message:e.message,code:e.code,data:e.data})}};
+</script></body></html>
