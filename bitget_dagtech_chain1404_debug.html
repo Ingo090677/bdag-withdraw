@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bitget → DAGTECH Chain 1404</title>
+<style>
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:760px;margin:30px auto;padding:0 16px;line-height:1.45}
+button{padding:12px 16px;margin:6px 0;font-size:16px}
+pre{white-space:pre-wrap;word-break:break-all;border:1px solid #ccc;border-radius:10px;padding:12px}
+code{word-break:break-all}
+</style>
+</head>
+<body>
+
+<h1>Bitget → DAGTECH Chain 1404</h1>
+
+<p><b>Ziel-Chain:</b> 1404 (0x57c)</p>
+<p><b>RPC:</b><br><code>https://rpc.dagtech.network</code></p>
+
+<button id="detect">1. Wallet erkennen</button><br>
+<button id="switch">2. Auf Chain 1404 wechseln</button><br>
+<button id="add">3. Chain 1404 hinzufügen</button><br>
+<button id="check">4. Aktuellen Status prüfen</button>
+
+<pre id="out">Noch nichts ausgeführt.</pre>
+
+<script>
+const CHAIN = "0x57c";
+
+function out(x){
+  document.getElementById("out").textContent =
+    typeof x === "string" ? x : JSON.stringify(x, null, 2);
+}
+
+function provider(){
+  if (window.bitkeep && window.bitkeep.ethereum) {
+    return {name:"window.bitkeep.ethereum", p:window.bitkeep.ethereum};
+  }
+  if (window.bitgetWallet && window.bitgetWallet.ethereum) {
+    return {name:"window.bitgetWallet.ethereum", p:window.bitgetWallet.ethereum};
+  }
+  if (window.ethereum) {
+    return {name:"window.ethereum", p:window.ethereum};
+  }
+  throw new Error("Kein EVM-Provider gefunden. Seite im Bitget-Wallet-DApp-Browser öffnen.");
+}
+
+async function status(){
+  const {name,p} = provider();
+  const accounts = await p.request({method:"eth_accounts"});
+  const chainId = await p.request({method:"eth_chainId"});
+  return {
+    provider:name,
+    account:accounts && accounts.length ? accounts[0] : null,
+    chainId,
+    chainDecimal:parseInt(chainId,16)
+  };
+}
+
+document.getElementById("detect").onclick = async () => {
+  try{
+    const {name,p}=provider();
+    const accounts=await p.request({method:"eth_requestAccounts"});
+    const chainId=await p.request({method:"eth_chainId"});
+    out({
+      stage:"detect",
+      ok:true,
+      provider:name,
+      account:accounts[0],
+      chainId,
+      chainDecimal:parseInt(chainId,16)
+    });
+  }catch(e){
+    out({stage:"detect",ok:false,code:e.code,message:e.message,data:e.data});
+  }
+};
+
+document.getElementById("switch").onclick = async () => {
+  try{
+    const {name,p}=provider();
+    const before=await status();
+
+    await p.request({
+      method:"wallet_switchEthereumChain",
+      params:[{chainId:CHAIN}]
+    });
+
+    const after=await status();
+
+    out({
+      stage:"switch",
+      ok:true,
+      provider:name,
+      before,
+      after
+    });
+  }catch(e){
+    out({
+      stage:"switch",
+      ok:false,
+      code:e.code,
+      message:e.message,
+      data:e.data
+    });
+  }
+};
+
+document.getElementById("add").onclick = async () => {
+  try{
+    const {name,p}=provider();
+
+    await p.request({
+      method:"wallet_addEthereumChain",
+      params:[{
+        chainId:CHAIN,
+        chainName:"BlockDAG DAGTECH",
+        nativeCurrency:{
+          name:"BDAG",
+          symbol:"BDAG",
+          decimals:18
+        },
+        rpcUrls:["https://rpc.dagtech.network"]
+      }]
+    });
+
+    const after=await status();
+
+    out({
+      stage:"addChain",
+      ok:true,
+      provider:name,
+      after
+    });
+  }catch(e){
+    out({
+      stage:"addChain",
+      ok:false,
+      code:e.code,
+      message:e.message,
+      data:e.data
+    });
+  }
+};
+
+document.getElementById("check").onclick = async () => {
+  try{
+    out({
+      stage:"status",
+      ok:true,
+      ...(await status())
+    });
+  }catch(e){
+    out({
+      stage:"status",
+      ok:false,
+      code:e.code,
+      message:e.message,
+      data:e.data
+    });
+  }
+};
+</script>
+</body>
+</html>
