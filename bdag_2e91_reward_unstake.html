@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BDAG 2e91 Reward Unstake</title>
+<style>
+body{font-family:system-ui;max-width:760px;margin:28px auto;padding:0 16px;line-height:1.45}
+.box{border:1px solid #ccc;border-radius:12px;padding:14px;margin:14px 0}
+button{padding:11px 13px;margin:5px 5px 5px 0;font-size:15px}
+pre,code{white-space:pre-wrap;word-break:break-all}
+pre{border:1px solid #ddd;border-radius:8px;padding:10px}
+.warn{font-weight:700}
+</style>
+</head>
+<body>
+<h1>BDAG 2e91 – Reward Unstake</h1>
+<div class="box">
+<p><b>Wallet:</b><br><code>0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+<p><b>Contract:</b><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+<p><b>Pool:</b><br><code>0x2e91ce66615b9945b505fc1f2adb9be60d10ed99</code></p>
+<p><b>Betrag:</b> 573105.68559035176709132 BDAG</p>
+<p><b>Value:</b> 0 BDAG</p>
+<p><b>Selector:</b> <code>0x867f1a3e</code></p>
+</div>
+<p class="warn">Diese Datei verwendet ausschließlich den zuletzt gemessenen Reward-Betrag. Der bereits Pending gebuchte Principal wird nicht erneut als Betrag verwendet.</p>
+
+<button id="connect">1. MetaMask verbinden</button>
+<button id="gas" disabled>2. Gas schätzen</button>
+<button id="call" disabled>3. eth_call simulieren</button><br><br>
+<label><input id="check" type="checkbox" disabled> Daten geprüft</label><br><br>
+<button id="send" disabled>4. Echten Unstake öffnen</button>
+<pre id="out">Noch nicht verbunden.</pre>
+
+<script>
+const WALLET="0xb93852b149d92d58879c5e4290de972a7fba036c", CONTRACT="0x08bd519f611556dc148e7bffe8d6f078f23a8ef7", POOL="0x2e91ce66615b9945b505fc1f2adb9be60d10ed99", CHAIN="0x57c";
+const AMOUNT="573105.68559035176709132";
+const DATA="0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c00000000000000000000000000000000000000000000795c1f18985dd6a73878000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000002e91ce66615b9945b505fc1f2adb9be60d10ed99";
+let gasOK=false, callOK=false;
+
+const out=document.getElementById("out"), gas=document.getElementById("gas"),
+call=document.getElementById("call"), check=document.getElementById("check"),
+send=document.getElementById("send");
+
+function show(x){out.textContent=typeof x==="string"?x:JSON.stringify(x,null,2)}
+function refresh(){check.disabled=!(gasOK&&callOK);send.disabled=!(gasOK&&callOK&&check.checked)}
+async function ready(){
+ if(!window.ethereum) throw new Error("MetaMask nicht gefunden");
+ const a=await ethereum.request({method:"eth_accounts"});
+ if(!a.length) throw new Error("Keine Wallet verbunden");
+ if(a[0].toLowerCase()!==WALLET) throw new Error("Falsche Wallet: "+a[0]);
+ const c=await ethereum.request({method:"eth_chainId"});
+ if(c.toLowerCase()!==CHAIN) throw new Error("Falsche Chain: "+c);
+ return a[0];
+}
+connect.onclick=async()=>{try{await ethereum.request({method:"eth_requestAccounts"});const a=await ready();gas.disabled=false;call.disabled=false;show({ok:true,account:a,chainId:await ethereum.request({method:"eth_chainId"})})}catch(e){show({ok:false,message:e.message,code:e.code,data:e.data})}};
+gas.onclick=async()=>{gasOK=false;refresh();try{const from=await ready();const g=await ethereum.request({method:"eth_estimateGas",params:[{from,to:CONTRACT,value:"0x0",data:DATA}]});gasOK=true;refresh();show({stage:"estimateGas",ok:true,gasDecimal:parseInt(g,16)})}catch(e){show({stage:"estimateGas",ok:false,message:e.message,code:e.code,data:e.data})}};
+call.onclick=async()=>{callOK=false;refresh();try{const from=await ready();const r=await ethereum.request({method:"eth_call",params:[{from,to:CONTRACT,value:"0x0",data:DATA},"latest"]});callOK=true;refresh();show({stage:"eth_call",ok:true,result:r})}catch(e){show({stage:"eth_call",ok:false,message:e.message,code:e.code,data:e.data})}};
+check.onchange=refresh;
+send.onclick=async()=>{try{const from=await ready();const g=await ethereum.request({method:"eth_estimateGas",params:[{from,to:CONTRACT,value:"0x0",data:DATA}]});const r=await ethereum.request({method:"eth_call",params:[{from,to:CONTRACT,value:"0x0",data:DATA},"latest"]});const gi=parseInt(g,16),gl=Math.ceil(gi*1.2);if(!confirm("ECHTE Transaktion?\n\nPool: "+POOL+"\nBetrag: "+AMOUNT+" BDAG\nSimulation: "+r+"\nGas: "+gi+"\nGas-Limit: "+gl))return;const h=await ethereum.request({method:"eth_sendTransaction",params:[{from,to:CONTRACT,value:"0x0",data:DATA,gas:"0x"+gl.toString(16)}]});show({stage:"sendTransaction",submitted:true,txHash:h});send.disabled=true}catch(e){show({stage:"sendTransaction",ok:false,message:e.message,code:e.code,data:e.data})}};
+</script>
+</body></html>
