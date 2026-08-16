@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BDAG Legacy Unstake – 6 Pools</title>
+<style>
+body{font-family:system-ui;max-width:900px;margin:24px auto;padding:0 14px;line-height:1.45}
+.card{border:1px solid #ccc;border-radius:14px;padding:14px;margin:16px 0}
+button{padding:10px 12px;margin:5px 5px 5px 0;font-size:15px}
+pre,code{white-space:pre-wrap;word-break:break-all}
+pre{border:1px solid #ddd;border-radius:8px;padding:10px}
+.warn{font-weight:700}
+</style>
+</head>
+<body>
+<h1>BDAG Legacy Unstake – 6 verbleibende Pools</h1>
+<p><b>Wallet:</b><br><code>0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+<p><b>Contract:</b><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+<p><b>Chain:</b> 1404 (0x57c)</p>
+<p class="warn">Pool 4be5 ist absichtlich nicht enthalten, weil sein Principal bereits 0 ist und Pending-Unstake vorhanden ist.</p>
+<button id="connect">MetaMask verbinden + Balance prüfen</button>
+<pre id="globalOut">Noch nicht verbunden.</pre>
+
+<div class="card">
+<h2>6387</h2>
+<p><b>Pool:</b><br><code>0x6387c32ccdd60bfba00ec70a67715dcd52e8083f</code></p>
+<p><b>Principal:</b> 1876082.0114999716 BDAG</p>
+<button onclick="estimate('6387')">Gas schätzen</button>
+<button onclick="simulate('6387')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-6387" onchange="refresh('6387')" disabled> Daten geprüft</label><br>
+<button id="send-6387" onclick="sendTx('6387')" disabled>Echten Unstake öffnen</button>
+<pre id="out-6387">Noch nicht geprüft.</pre>
+</div>
+
+<div class="card">
+<h2>d927</h2>
+<p><b>Pool:</b><br><code>0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0</code></p>
+<p><b>Principal:</b> 7845805.8557964952 BDAG</p>
+<button onclick="estimate('d927')">Gas schätzen</button>
+<button onclick="simulate('d927')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-d927" onchange="refresh('d927')" disabled> Daten geprüft</label><br>
+<button id="send-d927" onclick="sendTx('d927')" disabled>Echten Unstake öffnen</button>
+<pre id="out-d927">Noch nicht geprüft.</pre>
+</div>
+
+<div class="card">
+<h2>0db7</h2>
+<p><b>Pool:</b><br><code>0x0db7b54068234d8c667d216f3cd01e1d294499f1</code></p>
+<p><b>Principal:</b> 7845805.8557964952 BDAG</p>
+<button onclick="estimate('0db7')">Gas schätzen</button>
+<button onclick="simulate('0db7')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-0db7" onchange="refresh('0db7')" disabled> Daten geprüft</label><br>
+<button id="send-0db7" onclick="sendTx('0db7')" disabled>Echten Unstake öffnen</button>
+<pre id="out-0db7">Noch nicht geprüft.</pre>
+</div>
+
+<div class="card">
+<h2>b645</h2>
+<p><b>Pool:</b><br><code>0xb645f864600d47f7d35cd4155122b6d20eac67f4</code></p>
+<p><b>Principal:</b> 7845805.8557963809 BDAG</p>
+<button onclick="estimate('b645')">Gas schätzen</button>
+<button onclick="simulate('b645')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-b645" onchange="refresh('b645')" disabled> Daten geprüft</label><br>
+<button id="send-b645" onclick="sendTx('b645')" disabled>Echten Unstake öffnen</button>
+<pre id="out-b645">Noch nicht geprüft.</pre>
+</div>
+
+<div class="card">
+<h2>2e91</h2>
+<p><b>Pool:</b><br><code>0x2e91ce66615b9945b505fc1f2adb9be60d10ed99</code></p>
+<p><b>Principal:</b> 1407061.5086247213 BDAG</p>
+<button onclick="estimate('2e91')">Gas schätzen</button>
+<button onclick="simulate('2e91')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-2e91" onchange="refresh('2e91')" disabled> Daten geprüft</label><br>
+<button id="send-2e91" onclick="sendTx('2e91')" disabled>Echten Unstake öffnen</button>
+<pre id="out-2e91">Noch nicht geprüft.</pre>
+</div>
+
+<div class="card">
+<h2>0d8b</h2>
+<p><b>Pool:</b><br><code>0x0d8b6e6c7531394de0d8d5b1205002cbfaf308a8</code></p>
+<p><b>Principal:</b> 6438744.347171328 BDAG</p>
+<button onclick="estimate('0d8b')">Gas schätzen</button>
+<button onclick="simulate('0d8b')">eth_call simulieren</button><br>
+<label><input type="checkbox" id="check-0d8b" onchange="refresh('0d8b')" disabled> Daten geprüft</label><br>
+<button id="send-0d8b" onclick="sendTx('0d8b')" disabled>Echten Unstake öffnen</button>
+<pre id="out-0d8b">Noch nicht geprüft.</pre>
+</div>
+
+<script>
+const WALLET="0xb93852b149d92d58879c5e4290de972a7fba036c", CONTRACT="0x08bd519f611556dc148e7bffe8d6f078f23a8ef7", CHAIN="0x57c";
+const POOLS={"6387":{pool:"0x6387c32ccdd60bfba00ec70a67715dcd52e8083f",amount:"1876082.0114999716",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c000000000000000000000000000000000000000000018d469c10ceb8d4ad2400000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000006387c32ccdd60bfba00ec70a67715dcd52e8083f",gasOK:false,callOK:false},"d927":{pool:"0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0",amount:"7845805.8557964952",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c000000000000000000000000000000000000000000067d69fcd919ed6aff980000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000d927e669e43ca8cf4de5e0699cc1cce5a3d431e0",gasOK:false,callOK:false},"0db7":{pool:"0x0db7b54068234d8c667d216f3cd01e1d294499f1",amount:"7845805.8557964952",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c000000000000000000000000000000000000000000067d69fcd919ed6aff9800000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000db7b54068234d8c667d216f3cd01e1d294499f1",gasOK:false,callOK:false},"b645":{pool:"0xb645f864600d47f7d35cd4155122b6d20eac67f4",amount:"7845805.8557963809",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c000000000000000000000000000000000000000000067d69fcd919d2ce30010000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000b645f864600d47f7d35cd4155122b6d20eac67f4",gasOK:false,callOK:false},"2e91":{pool:"0x2e91ce66615b9945b505fc1f2adb9be60d10ed99",amount:"1407061.5086247213",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c0000000000000000000000000000000000000000000129f4f50c9aceb1458d00000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000002e91ce66615b9945b505fc1f2adb9be60d10ed99",gasOK:false,callOK:false},"0d8b":{pool:"0x0d8b6e6c7531394de0d8d5b1205002cbfaf308a8",amount:"6438744.347171328",data:"0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c00000000000000000000000000000000000000000005537507cc7eb6e8040000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000d8b6e6c7531394de0d8d5b1205002cbfaf308a8",gasOK:false,callOK:false}};
+
+function show(id,x){document.getElementById(id).textContent=typeof x==="string"?x:JSON.stringify(x,null,2)}
+function fmt(h){const n=BigInt(h),b=1000000000000000000n,w=n/b;let f=(n%b).toString().padStart(18,"0").replace(/0+$/,"");return f?w+"."+f:w.toString()}
+async function ready(){
+ if(!window.ethereum) throw new Error("MetaMask nicht gefunden");
+ const a=await ethereum.request({method:"eth_accounts"});
+ if(!a.length) throw new Error("Keine Wallet verbunden");
+ if(a[0].toLowerCase()!==WALLET) throw new Error("Falsche Wallet: "+a[0]);
+ const c=await ethereum.request({method:"eth_chainId"});
+ if(c.toLowerCase()!==CHAIN) throw new Error("Falsche Chain: "+c);
+ return a[0];
+}
+async function balance(a){const h=await ethereum.request({method:"eth_getBalance",params:[a,"latest"]});return{hex:h,bdag:fmt(h)}}
+function refresh(k){const p=POOLS[k],c=document.getElementById("check-"+k),s=document.getElementById("send-"+k);c.disabled=!(p.gasOK&&p.callOK);s.disabled=!(p.gasOK&&p.callOK&&c.checked)}
+connect.onclick=async()=>{try{await ethereum.request({method:"eth_requestAccounts"});const a=await ready(),b=await balance(a);show("globalOut",{ok:true,account:a,chainId:await ethereum.request({method:"eth_chainId"}),nativeBalanceBDAG:b.bdag,hasGas:BigInt(b.hex)>0n})}catch(e){show("globalOut",{ok:false,message:e.message,code:e.code,data:e.data})}};
+async function estimate(k){const p=POOLS[k];p.gasOK=false;refresh(k);try{const from=await ready(),b=await balance(from);if(BigInt(b.hex)===0n)throw new Error("Kein natives BDAG für Gas.");const g=await ethereum.request({method:"eth_estimateGas",params:[{from,to:CONTRACT,value:"0x0",data:p.data}]});p.gasOK=true;refresh(k);show("out-"+k,{stage:"estimateGas",ok:true,amountBDAG:p.amount,gasDecimal:parseInt(g,16),nativeBalanceBDAG:b.bdag})}catch(e){show("out-"+k,{stage:"estimateGas",ok:false,message:e.message,code:e.code,data:e.data})}}
+async function simulate(k){const p=POOLS[k];p.callOK=false;refresh(k);try{const from=await ready();const r=await ethereum.request({method:"eth_call",params:[{from,to:CONTRACT,value:"0x0",data:p.data},"latest"]});p.callOK=true;refresh(k);show("out-"+k,{stage:"eth_call",ok:true,amountBDAG:p.amount,result:r})}catch(e){show("out-"+k,{stage:"eth_call",ok:false,message:e.message,code:e.code,data:e.data})}}
+async function sendTx(k){const p=POOLS[k];try{const from=await ready(),b=await balance(from);if(BigInt(b.hex)===0n)throw new Error("Kein natives BDAG für Gas.");const g=await ethereum.request({method:"eth_estimateGas",params:[{from,to:CONTRACT,value:"0x0",data:p.data}]});const r=await ethereum.request({method:"eth_call",params:[{from,to:CONTRACT,value:"0x0",data:p.data},"latest"]});const gi=parseInt(g,16),gl=Math.ceil(gi*1.2);if(!confirm("ECHTE Unstake-Transaktion?\n\nPool: "+p.pool+"\nBetrag: "+p.amount+" BDAG\nValue: 0 BDAG\nSimulation: "+r+"\nGas: "+gi+"\nGas-Limit: "+gl))return;const h=await ethereum.request({method:"eth_sendTransaction",params:[{from,to:CONTRACT,value:"0x0",data:p.data,gas:"0x"+gl.toString(16)}]});show("out-"+k,{stage:"sendTransaction",submitted:true,txHash:h});document.getElementById("send-"+k).disabled=true}catch(e){show("out-"+k,{stage:"sendTransaction",ok:false,message:e.message,code:e.code,data:e.data})}}
+</script>
+</body></html>
