@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAGTECH d927 Unstake</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:850px;margin:35px auto;padding:0 20px;line-height:1.5}
+button{font-size:16px;padding:10px 15px;margin:6px 4px 6px 0}
+pre{white-space:pre-wrap;word-break:break-word;background:#f5f5f5;padding:15px;border:1px solid #ccc}
+.addr{word-break:break-all}
+</style>
+</head>
+<body>
+<h1>DAGTECH d927 Unstake</h1>
+
+<p><b>Chain ID:</b> 1404 (0x57c)</p>
+<p><b>Wallet:</b><br><span class="addr">0xb93852b149d92d58879c5e4290de972a7fba036c</span></p>
+<p><b>Contract:</b><br><span class="addr">0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</span></p>
+<p><b>Pool:</b><br><span class="addr">0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0</span></p>
+<p><b>Betrag:</b> 7,845,805.856 BDAG</p>
+<p><b>Selector:</b> 0x867f1a3e</p>
+
+<button onclick="connect()">1. MetaMask verbinden</button>
+<button onclick="simulate()">2. eth_call simulieren</button>
+<button onclick="sendTx()">3. Unstake in MetaMask öffnen</button>
+
+<pre id="out">Bereit.</pre>
+
+<script>
+const EXPECTED_CHAIN = "0x57c";
+const WALLET = "0xb93852b149d92d58879c5e4290de972a7fba036c";
+const CONTRACT = "0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+const POOL = "0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0";
+const SELECTOR = "867f1a3e";
+
+// Exakt der zuvor erfolgreich getestete Betrag: 7,845,805.856 BDAG.
+// Annahme: 18 Dezimalstellen, entsprechend dem bisherigen Test.
+const AMOUNT_WEI = 7845805856000000000000000n;
+
+function pad64(hex) {
+  return hex.replace(/^0x/,"").padStart(64,"0");
+}
+
+function calldata() {
+  const pool = pad64(POOL);
+  const amount = pad64(AMOUNT_WEI.toString(16));
+  return "0x" + SELECTOR + pool + amount;
+}
+
+function show(x) {
+  document.getElementById("out").textContent =
+    typeof x === "string" ? x : JSON.stringify(x,null,2);
+}
+
+async function provider() {
+  if (!window.ethereum) throw new Error("Kein MetaMask-Provider gefunden. Seite im MetaMask-Browser öffnen.");
+  return window.ethereum;
+}
+
+async function connect() {
+  try {
+    const p = await provider();
+    const accounts = await p.request({method:"eth_requestAccounts"});
+    const chainId = await p.request({method:"eth_chainId"});
+
+    if (chainId.toLowerCase() !== EXPECTED_CHAIN) {
+      throw new Error("Falsche Chain: " + chainId + " – benötigt wird " + EXPECTED_CHAIN);
+    }
+    if (!accounts[0] || accounts[0].toLowerCase() !== WALLET.toLowerCase()) {
+      throw new Error("Falsche Wallet verbunden: " + (accounts[0] || "keine"));
+    }
+
+    show({ok:true, account:accounts[0], chainId});
+  } catch(e) {
+    show({ok:false, error:e.message});
+  }
+}
+
+async function simulate() {
+  try {
+    const p = await provider();
+    const accounts = await p.request({method:"eth_requestAccounts"});
+    const chainId = await p.request({method:"eth_chainId"});
+    if (chainId.toLowerCase() !== EXPECTED_CHAIN) throw new Error("Falsche Chain: "+chainId);
+    if (accounts[0].toLowerCase() !== WALLET.toLowerCase()) throw new Error("Falsche Wallet");
+
+    const tx = {
+      from: WALLET,
+      to: CONTRACT,
+      value: "0x0",
+      data: calldata()
+    };
+
+    const result = await p.request({
+      method:"eth_call",
+      params:[tx,"latest"]
+    });
+
+    const gas = await p.request({
+      method:"eth_estimateGas",
+      params:[tx]
+    });
+
+    show({
+      ok:true,
+      eth_call:result,
+      gasHex:gas,
+      gasDecimal:parseInt(gas,16),
+      amountBDAG:"7845805.856"
+    });
+  } catch(e) {
+    show({ok:false, error:e.message, data:e.data || null});
+  }
+}
+
+async function sendTx() {
+  try {
+    const p = await provider();
+    const accounts = await p.request({method:"eth_requestAccounts"});
+    const chainId = await p.request({method:"eth_chainId"});
+    if (chainId.toLowerCase() !== EXPECTED_CHAIN) throw new Error("Falsche Chain: "+chainId);
+    if (accounts[0].toLowerCase() !== WALLET.toLowerCase()) throw new Error("Falsche Wallet");
+
+    const tx = {
+      from: WALLET,
+      to: CONTRACT,
+      value: "0x0",
+      data: calldata(),
+      gas: "0x249f0"
+    };
+
+    const ok = confirm(
+      "ECHTE d927-UNSTAKE-TRANSAKTION\n\n" +
+      "Wallet: " + WALLET + "\n" +
+      "Contract: " + CONTRACT + "\n" +
+      "Pool: " + POOL + "\n" +
+      "Betrag: 7,845,805.856 BDAG\n\n" +
+      "Danach zeigt MetaMask die Transaktion zur endgültigen Bestätigung."
+    );
+    if (!ok) return;
+
+    const hash = await p.request({
+      method:"eth_sendTransaction",
+      params:[tx]
+    });
+
+    show({submitted:true, txHash:hash});
+  } catch(e) {
+    show({ok:false, error:e.message, data:e.data || null});
+  }
+}
+</script>
+</body>
+</html>
