@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAGTECH d927 Unstake via MetaMask</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;max-width:820px;margin:24px auto;padding:0 18px;line-height:1.45}
+button{display:block;width:100%;font-size:17px;padding:13px;margin:10px 0;border-radius:10px}
+pre{white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:14px;border-radius:10px;border:1px solid #ddd}
+.addr{word-break:break-all}
+</style>
+</head>
+<body>
+<h2>DAGTECH d927 Unstake</h2>
+<p><b>Chain:</b> 1404 / 0x57c</p>
+<p><b>Wallet:</b><br><span class="addr">0xb93852b149d92d58879c5e4290de972a7fba036c</span></p>
+<p><b>Contract:</b><br><span class="addr">0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</span></p>
+<p><b>Pool:</b><br><span class="addr">0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0</span></p>
+<p><b>Betrag:</b> 7,845,805.856 BDAG</p>
+
+<button id="openMM">1. Diese Seite in MetaMask öffnen</button>
+<button id="connect">2. MetaMask verbinden</button>
+<button id="simulate">3. Unstake simulieren</button>
+<button id="send">4. Unstake in MetaMask bestätigen</button>
+
+<pre id="out">Bereit.</pre>
+
+<script>
+const EXPECTED_CHAIN = "0x57c";
+const WALLET   = "0xb93852b149d92d58879c5e4290de972a7fba036c";
+const CONTRACT = "0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+const POOL     = "0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0";
+const SELECTOR = "867f1a3e";
+const AMOUNT_WEI = 7845805856000000000000000n;
+
+const out = document.getElementById("out");
+const show = x => out.textContent = typeof x === "string" ? x : JSON.stringify(x,null,2);
+
+function pad32(v){ return v.replace(/^0x/,"").padStart(64,"0"); }
+
+function makeData(){
+  return "0x" +
+    SELECTOR +
+    pad32(WALLET) +
+    pad32(AMOUNT_WEI.toString(16)) +
+    pad32((96).toString(16)) +
+    pad32((1).toString(16)) +
+    pad32(POOL);
+}
+
+function mmDeepLink(){
+  const target = location.host + location.pathname + location.search;
+  return "https://metamask.app.link/dapp/" + target;
+}
+
+async function getProvider(){
+  if (window.ethereum) return window.ethereum;
+  await new Promise(resolve => {
+    let done=false;
+    const finish=()=>{if(!done){done=true;resolve();}};
+    window.addEventListener("ethereum#initialized", finish, {once:true});
+    setTimeout(finish,1800);
+  });
+  if (!window.ethereum) throw new Error("Kein MetaMask-Provider gefunden. Bitte zuerst Button 1 verwenden.");
+  return window.ethereum;
+}
+
+async function verify(p){
+  const accounts = await p.request({method:"eth_requestAccounts"});
+  if(!accounts || !accounts[0]) throw new Error("Keine Wallet verbunden.");
+  const chainId = await p.request({method:"eth_chainId"});
+  if(chainId.toLowerCase() !== EXPECTED_CHAIN) throw new Error("Falsche Chain: "+chainId+"; benötigt 0x57c.");
+  if(accounts[0].toLowerCase() !== WALLET.toLowerCase()) throw new Error("Falsche Wallet: "+accounts[0]);
+  return {account:accounts[0], chainId};
+}
+
+document.getElementById("openMM").onclick = () => { location.href = mmDeepLink(); };
+
+document.getElementById("connect").onclick = async () => {
+  try{
+    const p = await getProvider();
+    const v = await verify(p);
+    show({ok:true,message:"MetaMask verbunden",...v});
+  }catch(e){ show({ok:false,error:e.message}); }
+};
+
+document.getElementById("simulate").onclick = async () => {
+  try{
+    const p = await getProvider();
+    const v = await verify(p);
+    const tx = {from:WALLET,to:CONTRACT,value:"0x0",data:makeData()};
+    const result = await p.request({method:"eth_call",params:[tx,"latest"]});
+    const gas = await p.request({method:"eth_estimateGas",params:[tx]});
+    show({ok:true,account:v.account,chainId:v.chainId,eth_call:result,gasHex:gas,gasDecimal:parseInt(gas,16),amountBDAG:"7845805.856"});
+  }catch(e){ show({ok:false,error:e.message,data:e.data||null}); }
+};
+
+document.getElementById("send").onclick = async () => {
+  try{
+    const p = await getProvider();
+    await verify(p);
+    const tx0 = {from:WALLET,to:CONTRACT,value:"0x0",data:makeData()};
+    const callResult = await p.request({method:"eth_call",params:[tx0,"latest"]});
+    const gasHex = await p.request({method:"eth_estimateGas",params:[tx0]});
+    const gasEst = parseInt(gasHex,16);
+    const gasLimit = Math.ceil(gasEst*1.20);
+    const ok = confirm("ECHTE d927-UNSTAKE-TRANSAKTION\n\nBetrag: 7,845,805.856 BDAG\nPool: "+POOL+"\neth_call: "+callResult+"\nGas-Schätzung: "+gasEst+"\n\nDanach zeigt MetaMask die endgültige Transaktion.");
+    if(!ok){ show("Abgebrochen. Nichts gesendet."); return; }
+    const hash = await p.request({method:"eth_sendTransaction",params:[{from:WALLET,to:CONTRACT,value:"0x0",data:makeData(),gas:"0x"+gasLimit.toString(16)}]});
+    show({submitted:true,txHash:hash,message:"TX-Hash speichern."});
+  }catch(e){ show({ok:false,error:e.message,data:e.data||null}); }
+};
+</script>
+</body>
+</html>
