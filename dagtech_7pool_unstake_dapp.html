@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DAGTECH 7-Pool Unstake dApp</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;line-height:1.45}
+h1{font-size:28px;margin-bottom:8px}
+.card{border:1px solid #ddd;border-radius:14px;padding:16px;margin:14px 0}
+label{display:block;font-weight:600;margin-top:10px}
+select,input,button{font-size:16px}
+select,input{width:100%;padding:10px;box-sizing:border-box;margin-top:5px}
+button{width:100%;padding:12px;margin-top:10px;border-radius:10px}
+pre{white-space:pre-wrap;word-break:break-word;background:#f6f6f6;padding:14px;border:1px solid #ddd;border-radius:10px}
+.addr{word-break:break-all}
+.small{font-size:13px;color:#555}
+.ok{font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>DAGTECH – 7 Pool Unstake dApp</h1>
+<p class="small">Chain 1404 / MetaMask. Kein Private Key wird abgefragt.</p>
+
+<div class="card">
+<p><b>Wallet:</b><br><span class="addr">0xb93852b149d92d58879c5e4290de972a7fba036c</span></p>
+<p><b>Staking-Contract:</b><br><span class="addr">0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</span></p>
+<p><b>Selector:</b> 0x867f1a3e</p>
+</div>
+
+<div class="card">
+<label>Pool auswählen</label>
+<select id="poolSelect"></select>
+
+<label>Betrag in BDAG</label>
+<input id="amount" inputmode="decimal" placeholder="z. B. 254337.8224606645">
+
+<p class="small" id="hint"></p>
+
+<button id="openMM">1. In MetaMask öffnen</button>
+<button id="connectBtn">2. MetaMask verbinden</button>
+<button id="gasBtn" disabled>3. Gas schätzen</button>
+<button id="callBtn" disabled>4. eth_call simulieren</button>
+
+<label style="margin-top:14px">
+<input id="checked" type="checkbox" disabled style="width:auto">
+ Wallet, Chain, Contract, Pool und Betrag geprüft
+</label>
+
+<button id="sendBtn" disabled>5. Echte Unstake-Transaktion in MetaMask öffnen</button>
+</div>
+
+<pre id="out">Bereit.</pre>
+
+<script>
+const EXPECTED_CHAIN = "0x57c";
+const WALLET   = "0xb93852b149d92d58879c5e4290de972a7fba036c";
+const CONTRACT = "0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+const SELECTOR = "867f1a3e";
+
+const POOLS = {
+  "4be5":"0x4be5b1a9100cf96dea7cca4109051ba015d56580",
+  "6387":"0x6387c32ccdd60bfba00ec70a67715dcd52e8083f",
+  "d927":"0xd927e669e43ca8cf4de5e0699cc1cce5a3d431e0",
+  "0db7":"0x0db7b54068234d8c667d216f3cd01e1d294499f1",
+  "b645":"0xb645f864600d47f7d35cd4155122b6d20eac67f4",
+  "2e91":"0x2e91ce66615b9945b505fc1f2adb9be60d10ed99",
+  "0d8b":"0x0d8b6e6c7531394de0d8d5b1205002cbfaf308a8"
+};
+
+// Nur Werte, die als konkrete Testwerte vorliegen.
+// Sie werden NICHT automatisch gesendet und können geändert werden.
+const KNOWN = {
+  "4be5":"2501442.682",
+  "6387":"1876082.0114999716",
+  "0d8b":"254337.8224606645"
+};
+
+const select = document.getElementById("poolSelect");
+const amount = document.getElementById("amount");
+const hint = document.getElementById("hint");
+const out = document.getElementById("out");
+const checked = document.getElementById("checked");
+const sendBtn = document.getElementById("sendBtn");
+const gasBtn = document.getElementById("gasBtn");
+const callBtn = document.getElementById("callBtn");
+
+let provider=null, gasEstimate=null, callOk=false;
+
+for(const [name,address] of Object.entries(POOLS)){
+  const o=document.createElement("option");
+  o.value=name;
+  o.textContent=name+" — "+address;
+  select.appendChild(o);
+}
+
+function updatePool(){
+  const name=select.value;
+  amount.value = KNOWN[name] || "";
+  hint.textContent = KNOWN[name]
+    ? "Bekannter Testwert eingetragen. Vor dem Senden selbst prüfen."
+    : "Für diesen Pool ist kein verlässlich bestätigter Betrag hinterlegt. Betrag manuell eintragen und zuerst simulieren.";
+  resetChecks();
+}
+select.onchange=updatePool;
+amount.oninput=resetChecks;
+
+function resetChecks(){
+  gasEstimate=null;
+  callOk=false;
+  checked.checked=false;
+  sendBtn.disabled=true;
+}
+
+function show(x){ out.textContent=typeof x==="string"?x:JSON.stringify(x,null,2); }
+function pad32(v){ return v.replace(/^0x/,"").padStart(64,"0"); }
+
+function decimalToWei18(s){
+  s=(s||"").trim().replace(",",".");
+  if(!/^\d+(\.\d+)?$/.test(s)) throw new Error("Ungültiger Betrag.");
+  let [a,b=""]=s.split(".");
+  if(b.length>18) throw new Error("Maximal 18 Nachkommastellen.");
+  b=b.padEnd(18,"0");
+  return BigInt(a)*10n**18n + BigInt(b||"0");
+}
+
+function makeData(){
+  const wei=decimalToWei18(amount.value);
+  const pool=POOLS[select.value];
+  return "0x"+
+    SELECTOR+
+    pad32(WALLET)+
+    pad32(wei.toString(16))+
+    pad32((96).toString(16))+
+    pad32((1).toString(16))+
+    pad32(pool);
+}
+
+async function getProvider(){
+  if(window.ethereum) return window.ethereum;
+  await new Promise(resolve=>{
+    let done=false;
+    const finish=()=>{if(!done){done=true;resolve();}};
+    window.addEventListener("ethereum#initialized",finish,{once:true});
+    setTimeout(finish,1500);
+  });
+  if(!window.ethereum) throw new Error("Kein MetaMask-Provider gefunden. Seite direkt in MetaMask öffnen.");
+  return window.ethereum;
+}
+
+async function verify(){
+  const accounts=await provider.request({method:"eth_requestAccounts"});
+  const chainId=await provider.request({method:"eth_chainId"});
+  if(!accounts?.[0]) throw new Error("Keine Wallet verbunden.");
+  if(chainId.toLowerCase()!==EXPECTED_CHAIN) throw new Error("Falsche Chain: "+chainId+"; benötigt 0x57c.");
+  if(accounts[0].toLowerCase()!==WALLET.toLowerCase()) throw new Error("Falsche Wallet: "+accounts[0]);
+  return {account:accounts[0],chainId};
+}
+
+function txBase(){
+  return {
+    from:WALLET,
+    to:CONTRACT,
+    value:"0x0",
+    data:makeData()
+  };
+}
+
+document.getElementById("openMM").onclick=()=>{
+  const target=location.host+location.pathname+location.search;
+  location.href="https://metamask.app.link/dapp/"+target;
+};
+
+document.getElementById("connectBtn").onclick=async()=>{
+  try{
+    provider=await getProvider();
+    const v=await verify();
+    gasBtn.disabled=false;
+    callBtn.disabled=false;
+    checked.disabled=false;
+    show({stage:"connect",ok:true,...v});
+  }catch(e){show({stage:"connect",ok:false,message:e.message});}
+};
+
+gasBtn.onclick=async()=>{
+  try{
+    await verify();
+    const g=await provider.request({method:"eth_estimateGas",params:[txBase()]});
+    gasEstimate=parseInt(g,16);
+    show({stage:"estimateGas",ok:true,pool:select.value,amountBDAG:amount.value,gasHex:g,gasDecimal:gasEstimate});
+  }catch(e){
+    gasEstimate=null;
+    show({stage:"estimateGas",ok:false,message:e.message,code:e.code??null,data:e.data??null});
+  }
+};
+
+callBtn.onclick=async()=>{
+  try{
+    await verify();
+    const r=await provider.request({method:"eth_call",params:[txBase(),"latest"]});
+    callOk=true;
+    show({stage:"eth_call",ok:true,pool:select.value,amountBDAG:amount.value,result:r});
+  }catch(e){
+    callOk=false;
+    show({stage:"eth_call",ok:false,message:e.message,code:e.code??null,data:e.data??null});
+  }
+};
+
+checked.onchange=()=>{
+  sendBtn.disabled=!(checked.checked && gasEstimate && callOk);
+};
+
+sendBtn.onclick=async()=>{
+  try{
+    await verify();
+
+    // Direkt vor dem Senden erneut simulieren
+    const tx0=txBase();
+    const callResult=await provider.request({method:"eth_call",params:[tx0,"latest"]});
+    const gasHex=await provider.request({method:"eth_estimateGas",params:[tx0]});
+    const gasNow=parseInt(gasHex,16);
+    const gasLimit=Math.ceil(gasNow*1.20);
+
+    const poolName=select.value;
+    const poolAddr=POOLS[poolName];
+    const amt=amount.value;
+
+    const ok=confirm(
+      "ECHTE UNSTAKE-TRANSAKTION\\n\\n"+
+      "Pool: "+poolName+"\\n"+
+      "Adresse: "+poolAddr+"\\n"+
+      "Betrag: "+amt+" BDAG\\n"+
+      "eth_call: "+callResult+"\\n"+
+      "Gas-Schätzung: "+gasNow+"\\n"+
+      "Gas-Limit +20%: "+gasLimit+"\\n\\n"+
+      "MetaMask zeigt danach die endgültige Bestätigung."
+    );
+    if(!ok){show("Abgebrochen. Nichts gesendet.");return;}
+
+    const hash=await provider.request({
+      method:"eth_sendTransaction",
+      params:[{
+        from:WALLET,
+        to:CONTRACT,
+        value:"0x0",
+        data:makeData(),
+        gas:"0x"+gasLimit.toString(16)
+      }]
+    });
+
+    show({stage:"sendTransaction",submitted:true,pool:poolName,amountBDAG:amt,txHash:hash});
+
+  }catch(e){
+    show({stage:"sendTransaction",submitted:false,message:e.message,code:e.code??null,data:e.data??null});
+  }
+};
+
+updatePool();
+</script>
+</body>
+</html>
