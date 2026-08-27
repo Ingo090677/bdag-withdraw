@@ -1,0 +1,30 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DAGTECH 0d8b Unstake</title></head><body>
+<h2>DAGTECH 0d8b Unstake via MetaMask</h2>
+<p>Chain 1404 / 0x57c</p>
+<p>Wallet: 0xb93852b149d92d58879c5e4290de972a7fba036c</p>
+<p>Contract: 0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</p>
+<p>Pool: 0x0d8b6e6c7531394de0d8d5b1205002cbfaf308a8</p>
+<p>Betrag: 254337.8224606645 BDAG</p>
+<button onclick="openMM()">1. In MetaMask öffnen</button>
+<button onclick="connect()">2. MetaMask verbinden</button>
+<button onclick="simulate()">3. Unstake simulieren</button>
+<button onclick="sendTx()">4. Unstake bestätigen</button>
+<pre id="out">Bereit.</pre>
+<script>
+const EXPECTED_CHAIN="0x57c";
+const WALLET="0xb93852b149d92d58879c5e4290de972a7fba036c";
+const CONTRACT="0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+const POOL="0x0d8b6e6c7531394de0d8d5b1205002cbfaf308a8";
+const SELECTOR="867f1a3e";
+const AMOUNT_WEI=254337822460664500000000n;
+const out=document.getElementById("out");
+const show=x=>out.textContent=typeof x==="string"?x:JSON.stringify(x,null,2);
+function pad32(v){return v.replace(/^0x/,"").padStart(64,"0")}
+function data(){return "0x"+SELECTOR+pad32(WALLET)+pad32(AMOUNT_WEI.toString(16))+pad32((96).toString(16))+pad32((1).toString(16))+pad32(POOL)}
+function openMM(){location.href="https://metamask.app.link/dapp/"+location.host+location.pathname}
+async function p(){if(!window.ethereum) throw new Error("Kein MetaMask-Provider. Zuerst in MetaMask öffnen."); return window.ethereum}
+async function verify(pr){const a=await pr.request({method:"eth_requestAccounts"}); const c=await pr.request({method:"eth_chainId"}); if(c.toLowerCase()!==EXPECTED_CHAIN) throw new Error("Falsche Chain: "+c); if(!a[0]||a[0].toLowerCase()!==WALLET.toLowerCase()) throw new Error("Falsche Wallet"); return a[0]}
+async function connect(){try{const pr=await p(); const a=await verify(pr); show({ok:true,account:a})}catch(e){show({ok:false,error:e.message})}}
+async function simulate(){try{const pr=await p(); await verify(pr); const tx={from:WALLET,to:CONTRACT,value:"0x0",data:data()}; const r=await pr.request({method:"eth_call",params:[tx,"latest"]}); const g=await pr.request({method:"eth_estimateGas",params:[tx]}); show({ok:true,eth_call:r,gasDecimal:parseInt(g,16)})}catch(e){show({ok:false,error:e.message,data:e.data||null})}}
+async function sendTx(){try{const pr=await p(); await verify(pr); const tx0={from:WALLET,to:CONTRACT,value:"0x0",data:data()}; const r=await pr.request({method:"eth_call",params:[tx0,"latest"]}); const g=await pr.request({method:"eth_estimateGas",params:[tx0]}); const ge=parseInt(g,16); if(!confirm("ECHTE 0d8b-UNSTAKE\nBetrag: 254337.8224606645 BDAG\neth_call: "+r+"\nGas: "+ge)) return; const h=await pr.request({method:"eth_sendTransaction",params:[{from:WALLET,to:CONTRACT,value:"0x0",data:data(),gas:"0x"+Math.ceil(ge*1.2).toString(16)}]}); show({submitted:true,txHash:h})}catch(e){show({ok:false,error:e.message,data:e.data||null})}}
+</script></body></html>
