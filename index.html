@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BDAG Unstake 2e91 – MetaMask</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;line-height:1.45}
+.card{border:1px solid #ccc;border-radius:14px;padding:14px;margin:14px 0}
+button{width:100%;font-size:17px;padding:13px;margin:7px 0;border-radius:11px;border:1px solid #aaa}
+.primary{background:#111;color:#fff}
+pre{white-space:pre-wrap;word-break:break-word;border:1px solid #ccc;padding:12px;border-radius:10px;background:#f7f7f7}
+code{word-break:break-all}
+</style>
+</head>
+<body>
+
+<h1>BDAG Unstake – 2e91</h1>
+
+<div class="card">
+<p><b>Chain ID:</b> 1404 (0x57c)</p>
+<p><b>Wallet:</b><br><code>0xb93852b149d92d58879c5e4290de972a7fba036c</code></p>
+<p><b>Contract:</b><br><code>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</code></p>
+<p><b>Pool:</b><br><code>0x2e91ce66615b9945b505fc1f2adb9be60d10ed99</code></p>
+<p><b>Betrag:</b> 1407061.508624721299999456 BDAG</p>
+</div>
+
+<button class="primary" id="connect">1. Mit MetaMask verbinden</button>
+<button id="gas" disabled>2. Gas schätzen</button>
+<button id="call" disabled>3. eth_call simulieren</button>
+
+<label style="display:block;margin:14px 0">
+<input id="check" type="checkbox" disabled>
+Wallet, Chain, Pool und Betrag geprüft
+</label>
+
+<button class="primary" id="send" disabled>4. Transaktion in MetaMask öffnen</button>
+
+<pre id="out">Bereit. Diese Version ist für Brave → MetaMask Mobile gebaut.</pre>
+
+<script type="module">
+import { createEVMClient } from "https://esm.sh/@metamask/connect-evm@2.1.1";
+
+const WALLET = "0xb93852b149d92d58879c5e4290de972a7fba036c";
+const CONTRACT = "0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+const POOL = "0x2e91ce66615b9945b505fc1f2adb9be60d10ed99";
+const CHAIN = "0x57c";
+const RPC = "https://rpc.dagtech.network";
+const AMOUNT_BDAG = "1407061.508624721299999456";
+const DATA = "0x867f1a3e000000000000000000000000b93852b149d92d58879c5e4290de972a7fba036c0000000000000000000000000000000000000000000129f4f50c9aceb1458ae0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000002e91ce66615b9945b505fc1f2adb9be60d10ed99";
+
+const out = document.getElementById("out");
+const gasBtn = document.getElementById("gas");
+const callBtn = document.getElementById("call");
+const sendBtn = document.getElementById("send");
+const check = document.getElementById("check");
+
+let client = null;
+let provider = null;
+let gasOK = false;
+let callOK = false;
+
+function show(x) {
+  out.textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2);
+}
+
+function refresh() {
+  check.disabled = !(gasOK && callOK);
+  sendBtn.disabled = !(gasOK && callOK && check.checked);
+}
+
+async function ensureProvider() {
+  if (provider) return provider;
+
+  client = await createEVMClient({
+    dapp: {
+      name: "BDAG Unstake 2e91",
+      url: window.location.origin + window.location.pathname
+    },
+    api: {
+      supportedNetworks: {
+        [CHAIN]: RPC
+      }
+    },
+    analytics: { enabled: false }
+  });
+
+  const result = await client.connect({ chainIds: [CHAIN] });
+  provider = client.getProvider();
+
+  show({
+    stage: "connected",
+    accounts: result.accounts,
+    chainId: result.chainId
+  });
+
+  return provider;
+}
+
+async function verify() {
+  const p = await ensureProvider();
+  const accounts = await p.request({ method: "eth_accounts" });
+  const chainId = await p.request({ method: "eth_chainId" });
+
+  if (!accounts || !accounts[0]) throw new Error("Keine Wallet verbunden.");
+  if (accounts[0].toLowerCase() !== WALLET.toLowerCase())
+    throw new Error("Falsche Wallet: " + accounts[0]);
+  if (chainId.toLowerCase() !== CHAIN)
+    throw new Error("Falsche Chain: " + chainId);
+
+  return { p, from: accounts[0] };
+}
+
+function tx(from) {
+  return {
+    from,
+    to: CONTRACT,
+    value: "0x0",
+    data: DATA
+  };
+}
+
+document.getElementById("connect").onclick = async () => {
+  try {
+    show("MetaMask wird geöffnet. Verbindung dort bestätigen …");
+    const p = await ensureProvider();
+    const accounts = await p.request({ method: "eth_accounts" });
+    const chainId = await p.request({ method: "eth_chainId" });
+
+    if (!accounts || !accounts[0]) throw new Error("Keine Wallet verbunden.");
+    if (accounts[0].toLowerCase() !== WALLET.toLowerCase())
+      throw new Error("Falsche Wallet: " + accounts[0]);
+    if (chainId.toLowerCase() !== CHAIN)
+      throw new Error("Falsche Chain: " + chainId);
+
+    gasBtn.disabled = false;
+    callBtn.disabled = false;
+
+    show({
+      stage: "connect",
+      ok: true,
+      account: accounts[0],
+      chainId
+    });
+  } catch(e) {
+    show({
+      stage: "connect",
+      ok: false,
+      message: e?.message || String(e),
+      code: e?.code ?? null,
+      data: e?.data ?? null
+    });
+  }
+};
+
+gasBtn.onclick = async () => {
+  gasOK = false;
+  refresh();
+  try {
+    const {p,from} = await verify();
+    const g = await p.request({
+      method: "eth_estimateGas",
+      params: [tx(from)]
+    });
+    gasOK = true;
+    refresh();
+    show({stage:"estimateGas",ok:true,gasHex:g,gasDecimal:parseInt(g,16)});
+  } catch(e) {
+    show({stage:"estimateGas",ok:false,message:e?.message||String(e),code:e?.code??null,data:e?.data??null});
+  }
+};
+
+callBtn.onclick = async () => {
+  callOK = false;
+  refresh();
+  try {
+    const {p,from} = await verify();
+    const r = await p.request({
+      method: "eth_call",
+      params: [tx(from), "latest"]
+    });
+    callOK = true;
+    refresh();
+    show({stage:"eth_call",ok:true,result:r});
+  } catch(e) {
+    show({stage:"eth_call",ok:false,message:e?.message||String(e),code:e?.code??null,data:e?.data??null});
+  }
+};
+
+check.onchange = refresh;
+
+sendBtn.onclick = async () => {
+  try {
+    const {p,from} = await verify();
+
+    const r = await p.request({
+      method: "eth_call",
+      params: [tx(from), "latest"]
+    });
+
+    const g = await p.request({
+      method: "eth_estimateGas",
+      params: [tx(from)]
+    });
+
+    const gasInt = parseInt(g,16);
+    const gasLimit = Math.ceil(gasInt * 1.20);
+
+    if (!confirm(
+      "ECHTE UNSTAKE-TRANSAKTION\n\n" +
+      "Pool: " + POOL + "\n" +
+      "Betrag: " + AMOUNT_BDAG + " BDAG\n" +
+      "Simulation: " + r + "\n" +
+      "Gas: " + gasInt + "\n\n" +
+      "Danach öffnet MetaMask die Freigabe."
+    )) return;
+
+    show("MetaMask wird für die Transaktion geöffnet …");
+
+    const hash = await p.request({
+      method: "eth_sendTransaction",
+      params: [{
+        ...tx(from),
+        gas: "0x" + gasLimit.toString(16)
+      }]
+    });
+
+    show({
+      stage: "sendTransaction",
+      submitted: true,
+      txHash: hash
+    });
+  } catch(e) {
+    show({
+      stage:"sendTransaction",
+      ok:false,
+      message:e?.message||String(e),
+      code:e?.code??null,
+      data:e?.data??null
+    });
+  }
+};
+</script>
+</body>
+</html>
