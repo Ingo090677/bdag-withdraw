@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>DagTech – 0d8b Unstake</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 760px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+button {
+    width: 100%;
+    padding: 16px;
+    margin-top: 12px;
+    font-size: 17px;
+}
+
+pre {
+    background: #f2f2f2;
+    padding: 15px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.warning {
+    padding: 12px;
+    border: 1px solid #999;
+    margin-bottom: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>DagTech Legacy Unstake – 0d8b</h2>
+
+<div class="warning">
+Dieser Test führt nur die Position <b>0d8b</b> aus.
+Vor dem Senden wird der Call erneut simuliert.
+MetaMask zeigt die echte Transaktion vor der Signatur an.
+</div>
+
+<button id="connectButton">
+1. MetaMask verbinden
+</button>
+
+<button id="checkButton" disabled>
+2. Unstake nur simulieren
+</button>
+
+<button id="sendButton" disabled>
+3. 0d8b wirklich unstaken
+</button>
+
+<pre id="status">Noch nicht verbunden.</pre>
+
+<script>
+
+const EXPECTED_CHAIN = "0x57c"; // 1404
+
+const EXPECTED_WALLET =
+"0xb93852b149d92d58879c5e4290de972a7fba036c";
+
+const EXPECTED_CONTRACT =
+"0x08bd519f611556dc148e7bffe8d6f078f23a8ef7";
+
+const EXPECTED_SELECTOR =
+"0x867f1a3e";
+
+const HISTORICAL_TX =
+"0xd05f956423f26c7da9844a4e9f51c49c2ededcf5c76678d4f5e6ae9c2180a278";
+
+
+let account = null;
+let preparedTx = null;
+
+
+function out(text) {
+    document.getElementById("status").textContent = text;
+}
+
+
+async function connect() {
+
+    if (!window.ethereum) {
+        out(
+            "MetaMask wurde nicht gefunden.\n\n" +
+            "Auf iPhone/iPad die Seite am besten " +
+            "im MetaMask-Browser öffnen."
+        );
+        return;
+    }
+
+    try {
+
+        const accounts = await ethereum.request({
+            method: "eth_requestAccounts"
+        });
+
+        if (!accounts.length) {
+            throw new Error("Keine Wallet freigegeben.");
+        }
+
+        account = accounts[0].toLowerCase();
+
+        const chainId = await ethereum.request({
+            method: "eth_chainId"
+        });
+
+        let text =
+            "Wallet verbunden\n\n" +
+            "Adresse:\n" + account +
+            "\n\nChain ID: " +
+            parseInt(chainId, 16) +
+            "\n";
+
+
+        if (account !== EXPECTED_WALLET) {
+
+            throw new Error(
+                "\nSTOP\n\n" +
+                "Falsche Wallet.\n\n" +
+                "Erwartet:\n" +
+                EXPECTED_WALLET +
+                "\n\nVerbunden:\n" +
+                account
+            );
+        }
+
+
+        if (chainId.toLowerCase() !== EXPECTED_CHAIN) {
+
+            throw new Error(
+                "\nSTOP\n\n" +
+                "Falsche Chain.\n\n" +
+                "Erwartet: 1404 / 0x57c\n" +
+                "Aktuell: " +
+                parseInt(chainId,16)
+            );
+        }
+
+
+        text +=
+            "\n✅ Richtige Wallet" +
+            "\n✅ Chain 1404";
+
+
+        out(text);
+
+        document.getElementById(
+            "checkButton"
+        ).disabled = false;
+
+
+    } catch (err) {
+
+        out("Fehler:\n" + err.message);
+    }
+}
+
+
+async function checkUnstake() {
+
+    document.getElementById(
+        "sendButton"
+    ).disabled = true;
+
+    preparedTx = null;
+
+    try {
+
+        out(
+            "Lade historische 0d8b-Transaktion..."
+        );
+
+
+        const tx = await ethereum.request({
+
+            method:
+                "eth_getTransactionByHash",
+
+            params: [
+                HISTORICAL_TX
+            ]
+        });
+
+
+        if (!tx) {
+            throw new Error(
+                "Historische TX auf diesem Netzwerk nicht gefunden."
+            );
+        }
+
+
+        const from =
+            tx.from.toLowerCase();
+
+        const to =
+            tx.to.toLowerCase();
+
+        const data =
+            tx.input;
+
+        const selector =
+            data.slice(0,10).toLowerCase();
+
+
+        if (from !== EXPECTED_WALLET) {
+
+            throw new Error(
+                "Historische TX stammt nicht von der erwarteten Wallet."
+            );
+        }
+
+
+        if (to !== EXPECTED_CONTRACT) {
+
+            throw new Error(
+                "Historische TX geht nicht an den erwarteten Contract."
+            );
+        }
+
+
+        if (selector !== EXPECTED_SELECTOR) {
+
+            throw new Error(
+                "Falscher Function Selector: " +
+                selector
+            );
+        }
+
+
+        const call = {
+
+            from: account,
+
+            to: tx.to,
+
+            data: data,
+
+            value: "0x0"
+        };
+
+
+        // ====================================
+        // READ-ONLY SIMULATION
+        // ====================================
+
+        const result = await ethereum.request({
+
+            method: "eth_call",
+
+            params: [
+                call,
+                "latest"
+            ]
+        });
+
+
+        // ====================================
+        // GAS SCHÄTZEN
+        // ====================================
+
+        const gasHex =
+            await ethereum.request({
+
+                method:
+                    "eth_estimateGas",
+
+                params: [
+                    call
+                ]
+            });
+
+
+        const gas =
+            parseInt(gasHex,16);
+
+
+        // 25 % Puffer
+        const gasLimit =
+            Math.ceil(gas * 1.25);
+
+
+        preparedTx = {
+
+            from: account,
+
+            to: tx.to,
+
+            data: data,
+
+            value: "0x0",
+
+            gas:
+                "0x" +
+                gasLimit.toString(16)
+        };
+
+
+        out(
+            "0d8b PRÜFUNG ERFOLGREICH\n\n" +
+
+            "Historische TX:\n" +
+            HISTORICAL_TX +
+
+            "\n\nContract:\n" +
+            tx.to +
+
+            "\n\nSelector:\n" +
+            selector +
+
+            "\n\neth_call:\n" +
+            result +
+
+            "\n\nGas-Schätzung:\n" +
+            gas +
+
+            "\n\nGas-Limit mit 25 % Puffer:\n" +
+            gasLimit +
+
+            "\n\n✅ Kein Revert" +
+
+            "\n✅ Richtige Wallet" +
+
+            "\n✅ Richtiger Contract" +
+
+            "\n✅ Richtiger Selector" +
+
+            "\n\nNOCH KEINE TRANSAKTION GESENDET."
+        );
+
+
+        document.getElementById(
+            "sendButton"
+        ).disabled = false;
+
+
+    } catch (err) {
+
+        preparedTx = null;
+
+        out(
+            "STOP\n\n" +
+            err.message +
+            "\n\nEs wurde nichts gesendet."
+        );
+    }
+}
+
+
+async function sendUnstake() {
+
+    if (!preparedTx) {
+
+        out(
+            "Erst die Simulation durchführen."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        // ====================================
+        // VOR DEM SENDEN NOCHMALS SIMULIEREN
+        // ====================================
+
+        await ethereum.request({
+
+            method: "eth_call",
+
+            params: [
+                {
+                    from:
+                        preparedTx.from,
+
+                    to:
+                        preparedTx.to,
+
+                    data:
+                        preparedTx.data,
+
+                    value:
+                        "0x0"
+                },
+
+                "latest"
+            ]
+        });
+
+
+        out(
+            "MetaMask wird jetzt geöffnet.\n\n" +
+            "Bitte die Daten dort prüfen.\n\n" +
+            "Erst deine Bestätigung in MetaMask " +
+            "sendet die Transaktion."
+        );
+
+
+        // ====================================
+        // ECHTE TRANSAKTION
+        // ====================================
+
+        const txHash =
+            await ethereum.request({
+
+                method:
+                    "eth_sendTransaction",
+
+                params: [
+                    preparedTx
+                ]
+            });
+
+
+        out(
+            "TRANSAKTION GESENDET\n\n" +
+
+            "TX Hash:\n" +
+            txHash +
+
+            "\n\nWICHTIG:\n" +
+            "Jetzt NICHT die anderen sechs senden.\n" +
+            "Zuerst prüfen wir Receipt und " +
+            "deinen BDAG-Bestand."
+        );
+
+
+        document.getElementById(
+            "sendButton"
+        ).disabled = true;
+
+
+    } catch (err) {
+
+        out(
+            "Transaktion nicht gesendet " +
+            "oder abgebrochen.\n\n" +
+            err.message
+        );
+    }
+}
+
+
+document.getElementById(
+    "connectButton"
+).onclick = connect;
+
+
+document.getElementById(
+    "checkButton"
+).onclick = checkUnstake;
+
+
+document.getElementById(
+    "sendButton"
+).onclick = sendUnstake;
+
+</script>
+
+</body>
+</html>
