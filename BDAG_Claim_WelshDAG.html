@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BDAG Claim WelshDAG</title><style>body{font-family:Arial,sans-serif;max-width:760px;margin:auto;padding:28px;font-size:18px}h1{font-size:38px}.box{border:2px solid #ccc;border-radius:18px;padding:20px}.m{font-family:monospace;word-break:break-all}b{display:block;margin-top:18px;font-size:22px}button{margin:18px 5px 0 0;padding:10px;border:0;border-radius:18px;font-weight:bold}button:disabled{opacity:.35}pre{white-space:pre-wrap;border:1px solid #bbb;padding:15px;word-break:break-word}</style>
+<h1>BDAG Claim – WelshDAG</h1><div class=box><b>Chain ID:</b>1404 (0x57c)<b>Wallet:</b><span class=m>0xb93852b149d92d58879c5e4290de972a7fba036c</span><b>Contract:</b><span class=m>0x08bd519f611556dc148e7bffe8d6f078f23a8ef7</span><b>Unbonding:</b>ca. 38.195.998,930251 BDAG<b>Value:</b>0 BDAG<b>Selector:</b><span class=m>0xf3363c52</span><b>Call:</b><span class=m>claimStake(address,address)</span></div>
+<button id=c>1. MetaMask verbinden</button><button id=g disabled>2. Gas schätzen</button><button id=s disabled>3. eth_call simulieren</button>
+<p><label><input type=checkbox id=k disabled> <strong>Wallet, Chain, Contract und Call geprüft</strong></label></p>
+<button id=x disabled>4. Echte Claim-Transaktion in MetaMask öffnen</button><pre id=o>Noch nicht verbunden.</pre><h3>Die Seite fragt niemals nach Seed Phrase oder Private Key. Nur Schritt 4 kann eine echte Transaktion an MetaMask übergeben.</h3>
+<script>
+const W="0xb93852b149d92d58879c5e4290de972a7fba036c",C="0x08bd519f611556dc148e7bffe8d6f078f23a8ef7",S="f3363c52";let G=0,Q=0;
+const E=id=>document.getElementById(id),O=z=>E("o").textContent=JSON.stringify(z,null,2),P=()=>{if(!window.ethereum)throw Error("Im MetaMask-Browser öffnen");return window.ethereum},A=a=>a.replace(/^0x/,"").toLowerCase().padStart(64,"0"),D=()=>"0x"+S+A(W)+A(W),T=()=>({from:W,to:C,value:"0x0",data:D()});
+async function V(){let p=P(),ch=parseInt(await p.request({method:"eth_chainId"}),16),a=await p.request({method:"eth_accounts"});if(ch!==1404)throw Error("Falsche Chain: "+ch);if(!a.length||a[0].toLowerCase()!==W)throw Error("Falsche Wallet: "+(a[0]||"keine"))}
+function R(){let z=G&&Q;E("k").disabled=!z;if(!z){E("k").checked=false;E("x").disabled=true}}
+E("k").onchange=()=>E("x").disabled=!E("k").checked;
+E("c").onclick=async()=>{try{await P().request({method:"eth_requestAccounts"});await V();E("g").disabled=E("s").disabled=false;O({stage:"connect",ok:true})}catch(e){O({stage:"connect",ok:false,message:e.message})}};
+E("g").onclick=async()=>{try{await V();let r=await P().request({method:"eth_estimateGas",params:[T()]});G=1;R();O({stage:"estimateGas",ok:true,gasHex:r,gasDecimal:parseInt(r,16)})}catch(e){G=0;R();O({stage:"estimateGas",ok:false,message:e.message,code:e.code,data:e.data||null})}};
+E("s").onclick=async()=>{try{await V();let r=await P().request({method:"eth_call",params:[T(),"latest"]});Q=1;R();O({stage:"eth_call",ok:true,result:r})}catch(e){Q=0;R();O({stage:"eth_call",ok:false,message:e.message,code:e.code,data:e.data||null})}};
+E("x").onclick=async()=>{try{await V();if(!(G&&Q&&E("k").checked))throw Error("Prüfung fehlt");let h=await P().request({method:"eth_sendTransaction",params:[T()]});O({stage:"send",ok:true,txHash:h})}catch(e){O({stage:"send",ok:false,message:e.message,code:e.code,data:e.data||null})}};
+</script>
